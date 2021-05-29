@@ -1,0 +1,84 @@
+.main-header {
+    background-color: rgb(99 99 99);
+    width: 100%;
+}
+.container .card {
+    background-color: #fff;
+}
+.small-text-12 {
+    font-size: 12px;
+}
+.title-wrap {
+    font-size: 22px;
+    min-height: 52px;
+}
+
+/* Style the buttons */
+.btnlstgrd {
+    border: none;
+    outline: none;
+    padding: 12px 16px;
+    background-color: #f1f1f1;
+    cursor: pointer;
+}
+
+.btnlstgrd:hover {
+    background-color: #ddd;
+}
+
+.btnlstgrd.active {
+    background-color: #666;
+    color: white;
+} 
+
+.card-img-styl {
+    width: 200px;
+}
+
+/* 
+.raw img.img-fluid {
+    height: 200px;
+    object-fit: cover;
+}
+
+.top-dash {
+    position: relative;
+    padding-top: 10px;
+}
+
+.top-dash::before {
+    content: "";
+    position: absolute;
+    top:0;
+    left:0;
+    width: 20px;
+    height: 2px;
+    background-color: #e0a800;
+}*/
+.session-holder {
+    display: none;
+}
+button.btn.login-btn, button.btn.logged-in-btn {
+    float: right;
+    margin: 10px 3rem 0 0;
+}
+.logged-in .user-name {
+    float: right;
+    margin: 13px 1rem 0 0;
+    color: #fff;
+}
+.try-delete-movie-btn {
+    display: none;
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    z-index: 999999;
+    cursor: pointer;
+    background:red;
+    color: #fff;
+    line-height: 20px;
+    text-align: center;
+}
+.movie-holder .card:hover .try-delete-movie-btn {
+    display: block;
+}

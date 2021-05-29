@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <!-- Required meta tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://pro.fontawesome.com/releases/v5.10.0/css/all.css" integrity="sha384-AYmEC3Yw5cVb3ZcuHtOA93w35dYTsvhLPVnYs9eStHfGJvOvKxVfELGroGkvsg+p" crossorigin="anonymous"/>
+    <link rel="stylesheet" href="styles/dist/app.css">
+    <link rel="stylesheet" href="styles/custom.css">
+ 
+    <title>Movie Club</title>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <header class="main-header">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="w100 left session-holder login">
+                        <button type="button" class="btn btn-info btn-sm login-btn" data-toggle="modal" data-target="#loginModal">Login</button>
+                    </div>
+                    <div class="w100 left session-holder logged-in">
+                        <button type="button" class="btn btn-danger btn-sm logged-in-btn" id="try-logout-btn">Logout</button>
+                        <span class="user-name"></span>
+                    </div>
+                </div>
+                <div class="col-md-12">
+                    <div class="d-flex align-items-center py-2">
+                        <img class="img-fluid ml-4" src="images/logo.png" />
+
+                        <div class="input-group mx-5">
+                            <input class="form-control" type="text" placeholder="Search" id="search-input" aria-label="Search">
+                            <div>
+                                <button type="submit" class="btn btn-default input-group-text">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-search text-grey"></i>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="row mt-4">
+            <!--<div class="col-md-3">
+                <label>Genres</label>
+                <select class="custom-select d-block w-100" id="genres-select">
+                    <option value="">--- Choose Genre ---</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label>Filters</label>
+                <select class="custom-select d-block w-100" id="filter-select">
+                    <option value="">Popularity</option>
+                    <option value="vote_average.desc&vote_count.gte=10">Top Rated</option>
+                    <option value="primary_release_date.desc&primary_release_date.gte=2020-01-01&primary_release_date.lte=2020-11-25">Newest</option>
+                </select>
+            </div>-->
+            <div class="col-md-6">
+                <button type="button" class="btn btn-success btn-sm" data-toggle="modal" data-target="#addmovieModal">Add movie</button>
+            </div>
+            <div class="col-md-6">
+                <div class="float-right pt-3" id="btnContainer">
+                    <button class="btnlstgrd" data-value="list-view"><i class="fa fa-bars"></i> List</button>
+                    <button class="btnlstgrd active" data-value="grid-view"><i class="fa fa-th-large"></i> Grid</button>
+                </div>
+            </div>
+        </div>
+
+        <hr />
+
+        <div class="row movie-holder mb-2"></div>
+
+    </div>
+
+    <!-- JavaScript; -->
+    <!--<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>-->
+    <script src="js/jquery-1.12.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ho+j7jyWK8fNQe+A12Hb8AhRq26LrZ/JpcUGGOn+Y7RsweNrtN/tE3MoK7ZeZDyx" crossorigin="anonymous"></script>
+
+    <script>
+        // https://api.themoviedb.org/3/discover/movie?api_key=f8cb91093546766315ed639303bcb01d&language=en-US&sort_by=popularity.desc&include_adult=false&include_video=false&page=1
+        var api_endpoint = "https://api.themoviedb.org/3/";
+        var api_key = "f8cb91093546766315ed639303bcb01d";
+        var image_url = "https://image.tmdb.org/t/p/w220_and_h330_face/";
+        var genresArr = [];
+        var moviesData = {}; // keep last response results from apiCall
+        var auth = false;
+        $(function() {
+            getApiGenres();
+            getMovies();
+
+            auth = window.localStorage.getItem('session');
+            console.log(auth, "session");
+            if(auth) {
+                $(".session-holder.logged-in").show();
+            }
+            else {
+                $(".session-holder.login").show();
+            }
+
+            $("#genres-select").on("change", function() {
+                $("#search-input").val("");
+                getMovies(); 
+            });
+
+            $("#filter-select").on("change", function() {
+                $("#search-input").val("");
+                getMovies();
+            });
+
+            $("#search-input").on("input", function () {
+                getMovies();
+            });
+
+            $("#btnContainer button").on("click", function() {
+                $("#btnContainer button").removeClass("active");
+                $(this).addClass("active");
+                func_change_rendering();
+            });
+
+            $("#try-login-btn").on("click", function() {
+                login();
+            });
+            $("#try-logout-btn").on("click", function() {
+                logout();
+            });
+            $("#try-insert-movie-btn").on("click", function() {
+                insertMovie();
+            });
+            $("body").on("click", ".try-delete-movie-btn", function() { 
+                deleteMovie($(this).data('id'));
+            });
+             
+        });
+
+        function func_change_rendering()
+        {
+            $(".movie-holder").html("");
+            $.each(moviesData, function( index, value ) {
+                appendMovie(value);
+            });
+        }
+
+        function getApiGenres()
+        {
+            apiCall("genre/movie/list", "", function(data) {
+                if(data.genres) {
+                    $.each(data.genres, function( index, value ) {
+                        genresArr[value.id] = value.name;
+                        // populates genre select options, all available genres
+                        $("#genres-select").append('<option value="'+value.id+'">'+value.name+'</option>');
+                    });
+                }
+            });
+        }
+
+        function insertMovie() {
+            var title = $("form#add-movie-form input[name=title]").val();
+            var description = $("form#add-movie-form input[name=description]").val();
+            var image = $("form#add-movie-form input[name=image]").val();
+            var rating = parseFloat($("form#add-movie-form input[name=rating]").val());
+            var genre = $("form#add-movie-form input[name=genre]").val();
+            var premiere= $("form#add-movie-form input[name=premiere]").val();
+
+            if(title && description && image && rating && genre && premiere) {
+                var query = `mutation{createMovie(data:{title: "`+title+`" description: "`+description+`" image: "`+image+`" rating: `+rating+` genre: "`+genre+`" premiere: "`+premiere+`"}) {_id}}`;
+                apiCallNew(query, function(data) { 
+                    if(data.data.createMovie._id) {  
+                        $(".modal").modal("hide");
+                        getMovies();
+                    }
+                });
+            }
+
+        }
+        
+    
+        function deleteMovie(_id)
+        { 
+            
+            if(_id && confirm("Are you sure you want to delete the movie?")) {
+                var query = `mutation{deleteMovie(_id: "`+_id+`"){_id}}`;  
+                apiCallNew(query, function(data) {
+                     if(data.data.deleteMovie._id) {
+                         $(".modal").modal("hide");
+                         getMovies();
+                     }
+                });
+            }
+        }
+
+        function getMovies() {
+            var additional_param = "";
+            var query_param = "";
+
+            var query_str = $("#search-input").val();
+            query_str = query_str.trim();
+
+            if(query_str.length >= 3) {
+                var main_path = "search/movie";
+                additional_param = "&query="+query_str;
+            } else {
+                if( $("#filter-select").val() ) {
+                    additional_param += "&sort_by="+$("#filter-select").val();
+                }
+                if ( $("#genres-select").val() ) {
+                    additional_param += "&with_genres="+$("#genres-select").val();
+                }
+                var main_path = "discover/movie";
+            }
+
+            /*apiCall(main_path, additional_param, function(data) {
+                if(data.results) {
+                    moviesData = data.results;
+                    $(".movie-holder").html("");
+                    $.each(data.results, function( index, value ) {
+                        appendMovie(value);
+                    });
+                }
+            });*/
+            
+            var query = `query{movies{_id title description rating image genre premiere}}`;
+            apiCallNew(query, function(data) { 
+                if(data.data.movies) {
+                    moviesData = data.data.movies; console.log("RESPONSEEE", moviesData);
+                    $(".movie-holder").html("");
+                    $.each(moviesData, function( index, value ) {
+                        appendMovie(value);
+                    });
+                }
+            });
+        }
+
+        function apiCallNew(query,callback)
+        {
+            if(query) {
+                fetch('http://localhost:3001/graphql', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'Access-Control-Allow-Origin': '*' 
+                    },
+                    body: JSON.stringify({
+                        query
+                    })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    callback(data);
+                });
+            }
+        }
+
+        function apiCall(path, extra_param, callback)
+        {
+            var params = "";
+            params += "api_key="+api_key;
+            params += "&language=en-US";
+            //params += "&year=2020";
+            //params += "&page=1";
+            if(extra_param) {
+                params += extra_param;
+            }
+
+            $.get(api_endpoint+path+"?"+params, function(response) {
+                console.log(response);
+                if(response) {
+                    callback(response);
+                }
+            });
+        }
+
+        function appendMovie(data)
+        {
+            var genresNameArr = [];
+            $.each(data.genre_ids, function( index, value ) {
+                genresNameArr.push(genresArr[value]);
+            });
+
+            if( $(".btnlstgrd.active").data("value") == "grid-view" ) {
+                var html = '<div class="col-md-6">\n' +
+                '               <div class="card flex-md-row mb-4 box-shadow h-md-250">\n' +
+                '                   <div class="try-delete-movie-btn" data-id="'+data._id+'">X</div>\n' + 
+                '                   <div class="card-body d-flex flex-column align-items-start">\n' +
+                '                       <strong class="d-inline-block mb-2 text-success small-text-12">'+data.rating+'</strong>\n' +
+                '                       <strong class="d-inline-block mb-0 text-success small-text-12">'+data.genre+'</strong>\n' +
+                '                       <h3 class="mb-0 title-wrap">\n' +
+                '                           <a class="text-dark" href="#">'+data.title+'</a>\n' +
+                '                       </h3>\n' +
+                '                       <div class="mb-1 text-muted">'+data.premiere+'</div>\n' +
+                '                       <p class="card-text mb-auto">'+data.description+'</p>\n' +
+                '                   </div>\n' +
+                '                   <img class="card-img-styl d-none d-md-block h-100" alt="'+data.title+'" src="'+data.image+'" data-holder-rendered="true" ">\n' +
+                '               </div>\n' +
+                '           </div>';
+            } else {
+                var html = '<div class="col-md-12">\n' +
+                '               <div class="card flex-md-row mb-4">\n' +
+                '                   <img class="card-img-styl d-none d-md-inline-block h-100" alt="'+data.title+'" src="'+data.image+'" data-holder-rendered="true" ">\n' +
+                '                   <div class="card-body flex-column">\n' +
+                '                       <strong class="d-inline-block mb-2 text-success small-text-12">'+data.vote_average+'</strong>\n' +
+                '                       <strong class="d-inline-block mb-0 text-success small-text-12">'+genresNameArr.join(", ")+'</strong>\n' +
+                '                       <h3 class="mb-0 title-wrap">\n' +
+                '                           <a class="text-dark" href="#">'+data.title+'</a>\n' +
+                '                       </h3>\n' +
+                '                       <div class="mb-1 text-muted">'+data.premiere+'</div>\n' +
+                '                       <p class="card-text mb-auto">'+data.description+'</p>\n' +
+                '                   </div>\n' +
+                '               </div>\n' +
+                '           </div>';
+            }
+
+            $(".movie-holder").append(html);
+        }
+
+        function truncateText(text, chars_cnt) {
+            return jQuery.trim(text).substring(0, chars_cnt).split(" ").slice(0, -1).join(" ") + "...";
+        }
+
+        function logout() {
+            window.localStorage.removeItem("session");
+            console.log("logged out");
+            $(".session-holder.logged-in .user-name").html("");
+            $(".session-holder.login").show();
+            $(".session-holder.logged-in").hide();
+
+        }
+
+        function login() {
+            $("form#login-form .error-message").html(""); 
+            var email = $("form#login-form input[name=email]").val();
+            var pass = $("form#login-form input[name=pass]").val();
+
+            if(email && pass) {
+                var query = `mutation{login(email: "`+email+`" password: "`+pass+`")}`;
+                fetch('http://localhost:3001/graphql', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'Access-Control-Allow-Origin': '*' 
+                    },
+                    body: JSON.stringify({
+                        query
+                    })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if(data.errors && data.errors[0]) {
+                        $("form#login-form .error-message").html(data.errors[0].message);
+                    } else {
+                        $("form#login-form .error-message").html("");
+                        window.localStorage.setItem('session', data.login);
+
+                    }
+                    
+                    console.log(data);
+                    getUserData(data.login);
+                });
+            }
+        }
+
+        function getUserData(token) 
+        {
+            console.log("Try to get data");
+            var query = `query{currentUser{_id email firstName}}`;
+            fetch('http://localhost:3001/graphql', {
+                    method: 'POST', 
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'Access-Control-Allow-Origin': '*',
+                        'Access-Control-Allow-Methods': 'POST',
+                        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+                        'Authorization': 'Basic '+ token
+                    },
+                    body: JSON.stringify({
+                        query
+                    })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    console.log("response get user");
+                    
+                    $("#loginModal").modal("hide")
+                    $(".session-holder.login").hide();
+                    $(".session-holder.logged-in").show();
+           
+                    //if(data.currentUser.firstName !== undefined && data.currentUser.firstName !== null)
+                        //$(".session-holder.logged-in .user-name").html(data.currentUser.firstName);
+                });
+        }
+    </script>
+
+<div class="modal fade" id="addmovieModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true" style="display: none;">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header border-bottom-0">
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">×</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-title text-center">
+            <h4>Add Movie</h4>
+          </div>
+          <div class="d-flex flex-column text-center">
+            <form id="add-movie-form">
+              <div class="form-group">
+                <input type="text" class="form-control" name="title" placeholder="Enter movie title...">
+              </div>
+              <div class="form-group">
+                <input type="text" class="form-control" name="description" placeholder="Enter movie description...">
+              </div>
+              <div class="form-group">
+                <input type="text" class="form-control" name="rating" placeholder="Enter movie rating...">
+              </div>
+              <div class="form-group">
+                <input type="text" class="form-control" name="image" placeholder="Paste movei poster url...">
+              </div>
+              <div class="form-group">
+                <input type="text" class="form-control" name="genre" placeholder="Enter movie genre...">
+              </div>
+              <div class="form-group">
+                <input type="text" class="form-control" name="premiere" placeholder="Enter movie reliese date...">
+              </div>
+              <div class="form-group">
+                <div class="error-message"></div>
+              </div>
+              <button type="button" class="btn btn-info btn-block btn-round" id="try-insert-movie-btn">Add</button>
+            </form> 
+            
+            
+            
+          </div>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+
+<div class="modal fade" id="loginModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true" style="display: none;">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header border-bottom-0">
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">×</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-title text-center">
+            <h4>Login</h4>
+          </div>
+          <div class="d-flex flex-column text-center">
+            <form id="login-form">
+              <div class="form-group">
+                <input type="email" class="form-control" name="email" placeholder="Your email address...">
+              </div>
+              <div class="form-group">
+                <input type="password" class="form-control" name="pass" placeholder="Your password...">
+              </div>
+              <div class="form-group">
+                <div class="error-message"></div>
+              </div>
+              <button type="button" class="btn btn-info btn-block btn-round" id="try-login-btn">Login</button>
+            </form>
+            
+            
+            
+          </div>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+  <!-- partial -->
+  
+    
+    </div>
+</body>
+</html>
