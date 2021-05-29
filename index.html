@@ -124,7 +124,7 @@
             $("#btnContainer button").on("click", function() {
                 $("#btnContainer button").removeClass("active");
                 $(this).addClass("active");
-                func_change_rendering();
+                funcChangeRendering();
             });
 
             $("#try-login-btn").on("click", function() {
@@ -142,7 +142,7 @@
              
         });
 
-        function func_change_rendering()
+        function funcChangeRendering()
         {
             $(".movie-holder").html("");
             $.each(moviesData, function( index, value ) {
